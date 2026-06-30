@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1565C0">
+<title>Synapso</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 1.5rem;
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: #1565C0; color: #fff; padding: 2rem;
+  }
+  h1 { margin: 0; font-size: 2rem; }
+  p  { margin: 0; opacity: .9; text-align: center; max-width: 30rem; }
+  .cards { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; }
+  a.card {
+    display: block; background: #fff; color: #0D47A1; text-decoration: none;
+    padding: 1.25rem 1.75rem; border-radius: 1rem; font-weight: 600;
+    min-width: 12rem; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,.25);
+  }
+  a.card small { display: block; font-weight: 400; opacity: .7; margin-top: .25rem; }
+</style>
+</head>
+<body>
+  <h1>Synapso</h1>
+  <p>Wähle eine Variante. In <b>Safari</b> öffnen, dann „Teilen → Zum Home-Bildschirm".</p>
+  <div class="cards">
+    <a class="card" href="synapso/">Synapso<small>mit Startsätzen</small></a>
+    <a class="card" href="synapso-ohne/">Synapso o.&nbsp;S.<small>ohne Startsätze</small></a>
+  </div>
+</body>
+</html>
