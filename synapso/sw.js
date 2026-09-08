@@ -1,5 +1,5 @@
 // Service Worker für Synapso (mit Startsätzen) – Offline-Betrieb
-const CACHE = 'synapso-mit-v1';
+const CACHE = 'synapso-mit-v1.4';
 const ASSETS = [
   './',
   './index.html',

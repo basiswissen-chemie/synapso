@@ -107,6 +107,24 @@ if ('serviceWorker' in navigator) {
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   .btn-wrong{background:var(--red-soft);color:var(--red);padding:14px;font-weight:600;border:1px solid #EAC6C0;}
   .btn-right{background:var(--green-soft);color:var(--green);padding:14px;font-weight:600;border:1px solid #C4DEC6;}
+  .btn-import{background:var(--orange-soft);color:var(--orange);padding:14px;font-weight:600;border:1px solid #F2D4B2;}
+
+  /* ---------- Aktionsgruppen (Karten-Bildschirm) ----------
+     Jede Aufgabe (Exportieren / Importieren / Startsätze / Aufräumen) bekommt
+     eine eigene Gruppe mit Überschrift, damit die Knöpfe nicht als eine lange
+     Liste erscheinen. */
+  .act-block{margin-top:20px;}
+  .act-head{
+    display:flex;align-items:center;gap:9px;
+    font-size:0.72rem;font-weight:700;letter-spacing:0.06em;
+    text-transform:uppercase;color:var(--ink-soft);margin:0 0 8px;
+  }
+  .act-head::after{content:"";flex:1;height:1px;background:var(--line);}
+  /* Nur die Knöpfe der Gruppe selbst – die Startsatz-Auswahl bringt eigene mit. */
+  .act-block > button, .act-block > .row2 > button{
+    width:100%;font-size:0.92rem;line-height:1.25;padding:13px 10px;
+  }
+  .act-block > .hint{margin-top:8px;}
 
   /* ---------- Card ---------- */
   .card{
@@ -214,6 +232,7 @@ if ('serviceWorker' in navigator) {
     padding:10px 12px;display:flex;align-items:center;gap:10px;font-size:0.86rem;
   }
   .citem .front{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;}
+  .citem .thumb{flex:none;width:30px;height:30px;object-fit:cover;border-radius:6px;border:1px solid var(--line);}
   .citem .bx{
     flex:none;font-size:0.7rem;font-weight:700;color:var(--orange);
     background:var(--orange-soft);border-radius:6px;padding:3px 7px;
@@ -293,10 +312,15 @@ if ('serviceWorker' in navigator) {
   }
   .cset-tree label.exp-row.all{font-weight:600;color:var(--orange);}
   .cset-tree label.exp-row .cnt{color:var(--ink-soft);}
-  .cset-tree input[type=checkbox]{
+  .cset-tree input[type=checkbox],.cset-tree input[type=radio]{
     width:18px;height:18px;flex:0 0 18px;margin:0;padding:0;border:none;
     border-radius:0;background:none;resize:none;accent-color:var(--orange);
   }
+  .cset-tree input[type=number]{
+    width:70px;margin-left:8px;padding:4px 6px;font-size:0.9rem;
+    border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink);
+  }
+  .cset-tree input[type=number]:disabled{opacity:0.5;}
   @media (prefers-reduced-motion: reduce){
     *{transition:none !important;}
   }
@@ -324,7 +348,9 @@ if ('serviceWorker' in navigator) {
   <header>
     <h1>Synapso – Clever lernen mit System</span></h1>
     <span style="display:flex;align-items:center;gap:10px">
-      <span class="app-version" id="app-version" title="Version">v1.3</span>
+      <span class="app-version" id="app-version" title="Version">v1.4</span>
+      <span class="sub">Einstellungen</span>
+      <button class="help-btn" id="btn-settings" title="Einstellungen">⚙</button>
       <span class="sub">Hilfe</span>
       <button class="help-btn" id="btn-help" title="Anleitung">?</button>
     </span>
@@ -379,7 +405,7 @@ if ('serviceWorker' in navigator) {
     <div class="preview" id="prev-note"></div>
 
     <p class="hint">
-      Chemie-Notation wie in deinen Arbeitsblättern: <code>\ce{H2SO4}</code> für Formeln und
+      Chemie-Notation: <code>\ce{H2SO4}</code> für Formeln und
       Reaktionsgleichungen (Pfeile: <code>-&gt;</code>, Gleichgewicht: <code>&lt;=&gt;</code>),
       <code>$...$</code> für Mathe. Strukturformeln als Halbstruktur lassen sich
       mit <code>\ce{CH3-CH2-CH3}</code> abbilden.
@@ -395,27 +421,42 @@ if ('serviceWorker' in navigator) {
 
   <!-- ======== KARTEN ======== -->
   <div class="screen" id="screen-list">
+    <input type="search" id="card-search" placeholder="Karten durchsuchen …" style="margin-bottom:8px">
     <div style="display:flex;justify-content:space-between;margin-bottom:8px">
       <button class="btn-ghost" id="btn-toggle-groups" style="padding:4px 8px">Alle aufklappen</button>
       <button class="btn-ghost" id="btn-jump-end" style="padding:4px 8px">Ans Ende springen ↓</button>
     </div>
     <div class="clist" id="clist"></div>
-    <div style="margin-top:14px" class="row2">
-      <button class="btn-right" id="btn-export">Exportieren (JSON)</button>
-      <button class="btn-wrong" id="btn-import" style="background:var(--orange-soft);color:var(--orange);border-color:#F2D4B2">Importieren</button>
+
+    <!-- Aktionen: je Aufgabe eine Gruppe (Exportieren / Importieren / Aufräumen) -->
+    <div class="act-block">
+      <div class="act-head">Exportieren</div>
+      <div class="row2">
+        <button class="btn-right" id="btn-export">Alles inkl. Lernstand</button>
+        <button class="btn-right" id="btn-export-select">Nur ausgewählte Kartensätze</button>
+      </div>
+      <p class="hint">„Alles inkl. Lernstand" sichert die gesamte Sammlung samt Themen und Fächern – die Datei für den eigenen Umzug auf ein anderes Gerät.<br>
+      „Nur ausgewählte Kartensätze" speichert gewählte Sätze (auch Startsätze) <b>ohne Lernfortschritt</b> – ideal zum Weitergeben.</p>
     </div>
-    <input type="file" id="file-import" accept=".json,application/json" style="display:none">
-    <div style="margin-top:8px">
-      <button class="btn-ghost" id="btn-export-select" style="display:block;width:100%">Nur ausgewählte Kartensätze exportieren …</button>
+
+    <div class="act-block">
+      <div class="act-head">Importieren</div>
+      <button class="btn-import" id="btn-import">Datei auswählen …</button>
+      <input type="file" id="file-import" accept=".json,application/json" style="display:none">
+      <p class="hint">Karten werden ergänzt – nichts wird überschrieben, Dubletten werden übersprungen.</p>
     </div>
-    <p class="hint" style="text-align:center">Der vollständige Export enthält alle Karten samt Themen und Lernstand.<br>
-    Beim Import werden Karten ergänzt – nichts wird überschrieben, Dubletten werden übersprungen.<br>
-    „Nur ausgewählte Kartensätze" speichert gewählte Sätze (auch Startsätze) <b>ohne Lernfortschritt</b> – ideal zum Weitergeben.</p>
-    <div style="margin-top:10px;text-align:left" id="startset-area"></div>
-    <div style="margin-top:6px;text-align:center">
-      <button class="btn-ghost" id="btn-reset-open">Zurücksetzen …</button>
+
+    <div class="act-block" id="startset-area"></div>
+
+    <div class="act-block">
+      <div class="act-head">Aufräumen</div>
+      <div class="row2">
+        <button class="btn-wrong" id="btn-delete-open">Kartensätze löschen</button>
+        <button class="btn-wrong" id="btn-reset-open">Zurücksetzen</button>
+      </div>
+      <p class="hint">„Kartensätze löschen" entfernt gezielt einzelne Sätze – alle übrigen Karten behalten ihren Lernstand.<br>
+      „Zurücksetzen" räumt größer auf: Dort wählst du aus, was verschwindet – und kannst dabei <b>bearbeitete Karten behalten</b> (Korrekturen, ergänzte Erklärungen).</p>
     </div>
-    <p class="hint" style="text-align:center">Im Menü wählst du gezielt aus, was zurückgesetzt wird – und kannst dabei <b>bearbeitete Karten behalten</b> (Korrekturen, ergänzte Erklärungen).</p>
   </div>
 </div>
 
@@ -486,11 +527,14 @@ if ('serviceWorker' in navigator) {
       <summary>Wann kann ich welches Fach lernen?</summary>
       <div class="dbody">
         <b>Fach 1</b> kannst du lernen, solange genug Karten darin liegen: Eine Runde nimmt bis
-        zu 20 Karten, lässt aber – wie jedes andere Fach – mindestens <b>20 Karten als Reserve</b>
-        liegen. Aus dem Vorrat rückt dabei automatisch nach.<br>
-        Die <b>Fächer 2–5</b> öffnen sich, wenn sie <b>voll</b> sind (oranger Punkt). Eine Runde
-        bearbeitet bis zu 20 Karten – ein Fach wird dabei nie tiefer geleert als 20 Karten unter
-        sein Maximum.<br>
+        zu so viele Karten, wie unter <b>Einstellungen</b> als Rundengröße festgelegt ist
+        (Standard: 20 Karten), lässt aber – wie jedes andere Fach – mindestens ebenso viele
+        Karten als <b>Reserve</b> liegen. Bei „keine Einschränkung" entfällt diese Reserve –
+        ein Fach kann dann in einer Runde ganz geleert werden. Aus dem Vorrat rückt dabei
+        automatisch nach.<br>
+        Die <b>Fächer 2–5</b> öffnen sich, wenn sie <b>voll</b> sind (oranger Punkt). Auch hier
+        bearbeitet eine Runde jeweils die eingestellte Rundengröße – ein Fach wird dabei nie
+        tiefer geleert als diese Menge unter sein Maximum.<br>
         Ist ein Fach zu <b>90 % gefüllt</b>, kannst du es vorzeitig antippen (gestrichelter Rand) –
         danach ist es gesperrt, bis wieder Karten von unten nachrücken. Erst Fach 1 abarbeiten, dann geht es weiter!<br>
         <b>Finale Runde:</b> Wenn von unten nichts mehr nachkommen kann, darf ein Fach – auch Fach 1 –
@@ -502,9 +546,11 @@ if ('serviceWorker' in navigator) {
       <summary>Vorrat: Karten schreiben ohne Limit</summary>
       <div class="dbody">
         Neue Karten landen zuerst im <b>Vorrat</b>. Von dort rücken sie automatisch nach,
-        sobald in Fach 1 Platz ist (maximal 20 Karten). So kannst du beliebig viele Karten am Stück
-        anlegen, lernst aber immer in verdaulichen Portionen. Wiederholer – also Karten, die
-        zurückgefallen sind – haben dabei immer Vorrang vor neuen Karten.
+        sobald in Fach 1 Platz ist (abhängig von der unter <b>Einstellungen</b> gewählten
+        Rundengröße, Standard: 20 Karten). So kannst du beliebig viele Karten am Stück
+        anlegen, lernst aber immer in verdaulichen Portionen – oder, bei „keine Einschränkung",
+        alles auf einmal. Wiederholer – also Karten, die zurückgefallen sind – haben dabei
+        immer Vorrang vor neuen Karten.
       </div>
     </details>
 
@@ -547,8 +593,8 @@ if ('serviceWorker' in navigator) {
     <details>
       <summary>Exportieren: deine Sicherung</summary>
       <div class="dbody">
-        Über „Karten" → <b>Exportieren</b> speicherst du deinen gesamten Bestand als
-        Datei – alle Karten samt Themen, Lernstand, Erklärungen und Bildern. Das ist
+        Über „Karten" → Exportieren → <b>Alles inkl. Lernstand</b> speicherst du deinen
+        gesamten Bestand als Datei – alle Karten samt Themen, Lernstand, Erklärungen und Bildern. Das ist
         deine <b>Sicherung</b> und zugleich der Weg, Karten auf ein anderes Gerät oder
         zu anderen Personen zu bringen.<br>
         Mit <b>Importieren</b> liest du eine solche Datei wieder ein. Dabei werden
@@ -556,6 +602,23 @@ if ('serviceWorker' in navigator) {
         – du kannst also mehrere Dateien gefahrlos zusammenführen.<br>
         Tipp: Exportiere regelmäßig, besonders nach längeren Lern- oder Schreib-Sitzungen
         und immer, bevor du den Browser-Tab schließt.
+      </div>
+    </details>
+
+    <details>
+      <summary>Karten mischen (Import &amp; Startsätze)</summary>
+      <div class="dbody">
+        Beim <b>Importieren</b> und beim Laden eines <b>Startsatzes</b> lassen sich die
+        neuen Karten vor der Übernahme optional mischen:<br>
+        <b>Neue Karten durchmischen</b> verteilt sie in zufälliger statt in
+        Schreibreihenfolge über den Lernstapel. Sinnvoll, weil man beim Schreiben eines
+        Kartensatzes meist an einem Thema bleibt – ohne Mischen kämen viele sehr
+        ähnliche Karten direkt hintereinander dran.<br>
+        Das Häkchen wirkt nur auf die gerade neu hinzugefügten Karten; bereits
+        vorhandene Karten bleiben unverändert. Bei den Startsätzen gibt es zusätzlich
+        die Schnellauswahl-Knöpfe <b>„Alle Startsätze"</b>, <b>„Chemie gesamt"</b> und
+        <b>„Chemietechnik gesamt"</b>, die alle Vorlagen der jeweiligen Gruppe mit einem
+        Klick laden (mit demselben Misch-Häkchen).
       </div>
     </details>
 
@@ -603,6 +666,21 @@ if ('serviceWorker' in navigator) {
 </div>
 
 <!-- ======== Auswahl-Export: einzelne Kartensätze ohne Lernstand ======== -->
+<!-- ======== Import-Optionen: Mischen vor dem Übernehmen ======== -->
+<div class="overlay" id="import-overlay">
+  <div class="help-panel">
+    <button class="close" id="btn-import-close" title="Schließen">✕</button>
+    <h2>Karten importieren<span class="dot">.</span></h2>
+    <p class="hint" style="margin-bottom:10px" id="import-summary"></p>
+    <div class="cset-tree">
+      <label class="exp-row"><input type="checkbox" id="import-shuffle">Neue Karten durchmischen (statt in Dateireihenfolge)</label>
+    </div>
+    <div style="margin-top:14px">
+      <button class="btn-main" id="btn-import-do">Importieren</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="export-overlay">
   <div class="help-panel">
     <button class="close" id="btn-export-close" title="Schließen">✕</button>
@@ -615,6 +693,32 @@ if ('serviceWorker' in navigator) {
     <div id="export-tree" class="cset-tree"></div>
     <div style="margin-top:14px">
       <button class="btn-main" id="btn-export-do">Auswahl exportieren</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======== Kartensätze gezielt löschen ======== -->
+<div class="overlay" id="delete-overlay">
+  <div class="help-panel">
+    <button class="close" id="btn-delete-close" title="Schließen">✕</button>
+    <h2>Kartensätze löschen<span class="dot">.</span></h2>
+    <p class="hint" style="margin-bottom:10px">
+      Wähle die Sätze, die vollständig aus der Sammlung verschwinden sollen. Alle
+      übrigen Karten behalten ihren Lernstand. Korrekturen an Startsatz-Karten gehen
+      <b>nicht verloren</b>: Sie wandern in die Vorlage und sind beim nächsten Laden
+      des Startsatzes wieder da.
+    </p>
+    <div id="delete-tree" class="cset-tree"></div>
+    <div class="cset-tree" style="margin-top:8px">
+      <label class="exp-row"><input type="checkbox" id="del-keepedited"> Bearbeitete Karten behalten <span class="cnt" id="del-keepedited-cnt"></span></label>
+    </div>
+    <div id="del-user-warn" class="hint" style="display:none;margin:6px 0 0;color:var(--orange)">
+      <span id="del-user-warn-cnt"></span> eigene Karten werden unwiderruflich gelöscht.
+      <button class="btn-ghost" id="del-user-export" type="button" style="display:block;width:100%;margin-top:4px">Diese eigenen Karten zuerst exportieren …</button>
+    </div>
+    <p class="hint" id="del-summary" style="margin:10px 0 0"></p>
+    <div style="margin-top:12px">
+      <button class="btn-main" id="btn-delete-do">Ausgewählte Sätze löschen</button>
     </div>
   </div>
 </div>
@@ -632,6 +736,38 @@ if ('serviceWorker' in navigator) {
       den Fächern.
     </p>
     <div id="drill-tree"></div>
+  </div>
+</div>
+
+<!-- ======== Einstellungen ======== -->
+<div class="overlay" id="settings-overlay">
+  <div class="help-panel">
+    <button class="close" id="btn-settings-close" title="Schließen">✕</button>
+    <h2>Einstellungen<span class="dot">.</span></h2>
+    <div class="cset-tree" id="settings-tree">
+      <div class="exp-head">Anzahl der Wiederholungen</div>
+      <p class="hint" style="margin:0 0 10px">
+        Lege fest, wie viele Karten eine Lernrunde höchstens umfasst. Ein kleinerer Wert
+        bedeutet kürzere, häufigere Runden; ein größerer Wert oder „keine Einschränkung"
+        bearbeitet ein volles Fach in einem Rutsch.
+      </p>
+      <label class="exp-row"><input type="radio" name="batch-choice" id="batch-20" value="20">20 Karten pro Runde (Standard)</label>
+      <label class="exp-row"><input type="radio" name="batch-choice" id="batch-40" value="40">40 Karten pro Runde</label>
+      <label class="exp-row"><input type="radio" name="batch-choice" id="batch-custom" value="custom">Eigener Wert:
+        <input type="number" id="batch-custom-value" min="1" step="1" disabled></label>
+      <label class="exp-row"><input type="radio" name="batch-choice" id="batch-unlimited" value="unlimited">Keine Einschränkung</label>
+
+      <div class="exp-head second">Importverhalten</div>
+      <p class="hint" style="margin:0 0 10px">
+        Lege fest, ob neu importierte Karten (aus einer Datei oder einem Startsatz)
+        dauerhaft durchmischt werden sollen. Beim einzelnen Import lässt sich das
+        weiterhin für den Einzelfall abändern.
+      </p>
+      <label class="exp-row"><input type="checkbox" id="settings-import-shuffle">Neue Karten beim Import automatisch durchmischen</label>
+    </div>
+    <div style="margin-top:14px">
+      <button class="btn-main" id="btn-settings-save">Übernehmen</button>
+    </div>
   </div>
 </div>
 
@@ -744,11 +880,35 @@ if (!window.storage){
 /* ================= Leitner-Konfiguration ================= */
 // Fächergrößen: ein Fach (außer Fach 1) wird erst bearbeitet, wenn es voll ist.
 const CAPACITY = [40, 80, 200, 320, 560];  // Fach 1..5: maximale Kartenzahl
-const BATCH = 20;                          // Karten pro Lernrunde aus Fach 2..5
+let BATCH = 20;                            // Karten pro Lernrunde; Standard 20, unter „Einstellungen" änderbar (Infinity = keine Einschränkung)
+let batchSetting = 20;                     // Rohwert wie gespeichert: Zahl oder 'unlimited'
 const EARLY = 0.9;                         // Mindestfüllung (90 %) für vorzeitiges Lernen der Fächer 2..5
+const RESERVE = 0.2;                       // Mindestbestand (20 % der Kapazität), der normalerweise im Fach bleibt
 const LOW = 5;                             // Warnung, wenn Fach 1 + Vorrat zusammen so wenige Karten haben
 const KEY = 'Synapso:cards';
 const BACKUP_KEY = 'Synapso:backup';
+const SETTINGS_KEY = 'Synapso:settings';
+
+// Übernimmt einen Rundengröße-Wert (Zahl oder 'unlimited') in BATCH/batchSetting.
+function applyBatchSetting(v){
+  batchSetting = v;
+  BATCH = (v === 'unlimited') ? Infinity : v;
+}
+let importShuffleSetting = false;         // Vorgabe fürs Import-Häkchen "durchmischen"; unter „Einstellungen" änderbar
+async function loadSettings(){
+  try {
+    const r = await window.storage.get(SETTINGS_KEY);
+    if (r && r.value){
+      const s = JSON.parse(r.value);
+      if (s && (s.batch === 'unlimited' || (Number.isFinite(s.batch) && s.batch >= 1))) applyBatchSetting(s.batch);
+      if (s && typeof s.importShuffle === 'boolean') importShuffleSetting = s.importShuffle;
+    }
+  } catch(e){ /* noch keine Einstellungen gespeichert -> Standardwert bleibt */ }
+}
+async function saveSettings(){
+  try { await window.storage.set(SETTINGS_KEY, JSON.stringify({ batch: batchSetting, importShuffle: importShuffleSetting })); }
+  catch(e){ toast('Einstellung konnte nicht gespeichert werden'); }
+}
 
 let cards = [];
 let queue = [];
@@ -1013,6 +1173,9 @@ function refill(){
 // Fach 2-5: regulär bearbeitbar, wenn das Fach voll ist.
 function boxFull(b){ return boxCards(b).length >= CAPACITY[b - 1]; }
 function boxReady(b){
+  // Klassische Leitner-Regel (wie in startSession): Ist das Zielfach b+1 voll,
+  // blockiert das den Weg aus Fach b – dann gilt b nicht als „bereit".
+  if (b < 5 && boxFull(b + 1)) return false;
   if (b === 1) return takeable(1) > 0;
   return boxFull(b);
 }
@@ -1030,13 +1193,16 @@ function isEndgame(b){
   return true;
 }
 // Reserve-Boden: Jedes Fach (auch Fach 1) wird im normalen Lernmodus nie tiefer
-// geleert als Kapazität - BATCH. Fach 1: min. 20, Fach 2: 20, Fach 3: 180,
-// Fach 4: 300, Fach 5: 540 verbleiben. Erst die "finale Runde" leert ganz.
-function boxFloor(b){ return Math.max(0, CAPACITY[b - 1] - BATCH); }
+// geleert als RESERVE (20 %) seiner Kapazität – unabhängig von der eingestellten
+// Rundengröße (BATCH). BATCH bestimmt nur, wie viele Karten eine Runde umfasst,
+// nicht wie weit ein Fach geleert werden darf – auch bei „keine Einschränkung"
+// (BATCH = Infinity) bleibt die Reserve bestehen.
+// Erst die "finale Runde" leert ein Fach über den Reserve-Boden hinaus ganz.
+function boxFloor(b){ return Math.ceil(CAPACITY[b - 1] * RESERVE); }
 // Wie viele Karten dürfen aktuell aus Fach b entnommen werden?
 function takeable(b){
   const n = boxCards(b).length;
-  if (isEndgame(b)) return Math.min(BATCH, n);            // finale Runde: bis zur Leerung (in 20er-Runden)
+  if (isEndgame(b)) return Math.min(BATCH, n);            // finale Runde: bis zur Leerung (in Runden der eingestellten Größe)
   return Math.max(0, Math.min(BATCH, n - boxFloor(b)));   // sonst: nur bis zum Reserve-Boden
 }
 // Vorzeitiges Lernen der Fächer 2..5:
@@ -1160,6 +1326,14 @@ function nextCard(){
   if (!practiceMode && sessionBox && sessionBox < 5 && queue.length > 0 && boxFull(sessionBox + 1)){
     queue = [];
     toast('Fach ' + (sessionBox + 1) + ' ist jetzt voll – Runde beendet');
+  }
+  // Bei „Keine Einschränkung" (BATCH = Infinity) endet Fach 1 nicht nach jeder
+  // Kapazitätsfüllung von 40 Karten: Ist die Runde leer, wird nachgefüllt (Vorrat
+  // und zurückgefallene Wiederholer) und nahtlos weitergelernt, solange Nachschub da ist.
+  if (!practiceMode && sessionBox === 1 && BATCH === Infinity && queue.length === 0 && !boxFull(2)){
+    refill();
+    const take = takeable(1);
+    if (take > 0) queue = boxCards(1).slice(0, take);
   }
   current = queue.shift() || null;
   if (!current && drillRepeat){
@@ -1291,10 +1465,15 @@ function renderLearn(){
 
   if (vis.length === 0){
     // Erststart: leer beginnen oder mit einem Startsatz?
-    area.innerHTML = '<div class="empty">Willkommen! Du kannst leer beginnen und unter „Neue Karte" ' +
-      'eigene Karten anlegen – oder einen vorbereiteten Kartensatz laden:</div>' +
-      '<div id="ss-chooser" style="text-align:left"></div>';
-    buildStartsetChooser(document.getElementById('ss-chooser'), true);
+    if (STARTSETS.length){
+      area.innerHTML = '<div class="empty">Willkommen! Du kannst leer beginnen und unter „Neue Karte" ' +
+        'eigene Karten anlegen – oder einen vorbereiteten Kartensatz laden:</div>' +
+        '<div id="ss-chooser" style="text-align:left"></div>';
+      buildStartsetChooser(document.getElementById('ss-chooser'), true);
+    } else {
+      area.innerHTML = '<div class="empty">Willkommen! Lege unter „Neue Karte" deine ' +
+        'eigenen Karten an oder importiere einen Kartensatz.</div>';
+    }
     return;
   }
   if (!current){
@@ -1314,7 +1493,7 @@ function renderLearn(){
       const n = boxCards(b).length;
       const txt = (b === 1)
         ? 'Fach 1 enthält ' + n + ' Karte' + (n===1?'':'n') + ' – alle dürfen weiterwandern.'
-        : 'Fach ' + b + ' ist voll (' + n + ' Karten). Eine Runde bearbeitet ' + BATCH + ' davon.';
+        : 'Fach ' + b + ' ist voll (' + n + ' Karten). Bevor weitere Karten aus Fach ' + (b - 1) + ' nachrücken können, muss hier zuerst gelernt werden.';
       area.innerHTML =
         '<div class="card"><div class="content">' + txt +
         (ready.length > 1 ? '<br><span style="font-size:0.82rem;color:var(--ink-soft)">Auch bereit: Fach ' +
@@ -1549,11 +1728,12 @@ function makeCardItem(c){
   const div = document.createElement('div');
   div.className = 'citem';
   const badge = c.box >= 6 ? '✓' : (c.box === 0 ? 'V' : 'F' + c.box);
-  const hasImg = c.frontImg || c.backImg;
+  const thumbSrc = c.frontImg || c.backImg;
   const label = c.front ? renderChem(c.front) : '<i style="color:#B5AEA5">[Bildkarte]</i>';
   div.innerHTML =
     '<span class="bx" title="' + (c.box === 0 ? 'Vorrat' : c.box >= 6 ? 'gemeistert' : 'Fach ' + c.box) + '">' + badge + '</span>' +
-    '<span class="front">' + (hasImg ? '🖼 ' : '') + (c.note ? '💬 ' : '') + label + '</span>' +
+    (thumbSrc ? '<img class="thumb" src="' + thumbSrc + '" alt="">' : '') +
+    '<span class="front">' + (c.note ? '💬 ' : '') + label + '</span>' +
     '<button class="edit" title="Bearbeiten">&#9998;</button>' +
     '<button class="del" title="Löschen">✕</button>';
   div.querySelector('.edit').onclick = () => {
@@ -1578,9 +1758,20 @@ function renderList(){
     list.innerHTML = '<div class="empty">Keine Karten vorhanden.</div>';
     return;
   }
+  const query = (document.getElementById('card-search').value || '').trim().toLowerCase();
+  const visible = query ? cards.filter(c =>
+    (c.front || '').toLowerCase().includes(query) ||
+    (c.back || '').toLowerCase().includes(query) ||
+    (c.subject || '').toLowerCase().includes(query) ||
+    (c.note || '').toLowerCase().includes(query)
+  ) : cards;
+  if (visible.length === 0){
+    list.innerHTML = '<div class="empty">Keine Karten gefunden.</div>';
+    return;
+  }
   // Zwei Ebenen: Fachbereich -> Unterthema ('' = ohne Unterthema)
   const byArea = {};
-  cards.forEach(c => {
+  visible.forEach(c => {
     const sp = splitSubject(c.subject || 'Allgemein');
     (byArea[sp.area] = byArea[sp.area] || {});
     (byArea[sp.area][sp.topic] = byArea[sp.area][sp.topic] || []).push(c);
@@ -1590,7 +1781,7 @@ function renderList(){
   function group(key, titleHtml, count, sub, fill){
     const det = document.createElement('details');
     det.className = 'cgroup' + (sub ? ' sub' : '');
-    if (openGroups.has(key)) det.open = true;
+    if (openGroups.has(key) || query) det.open = true;
     det.addEventListener('toggle', () => { if (det.open) openGroups.add(key); else openGroups.delete(key); });
     const sum = document.createElement('summary');
     sum.innerHTML = titleHtml + ' <span class="cnt">(' + count + ' Karte' + (count === 1 ? '' : 'n') + ')</span>';
@@ -1620,6 +1811,7 @@ function renderList(){
     list.appendChild(areaDet);
   });
 }
+document.getElementById('card-search').oninput = renderList;
 
 document.getElementById('btn-jump-end').onclick = () => {
   window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
@@ -1774,7 +1966,7 @@ const STARTSETS = [
       {"front":"Wie heißt die Seitenkette mit einem C-Atom?","back":"Methylgruppe","subject":"Organische Chemie / Nomenklatur"},
       {"front":"Wie heißt die Seitenkette mit zwei C-Atomen?","back":"Ethylgruppe","subject":"Organische Chemie / Nomenklatur"},
       {"front":"Wie heißt die Seitenkette mit drei C-Atomen?","back":"Propylgruppe","subject":"Organische Chemie / Nomenklatur"},
-      {"front":"Wie viele C-Atom an eine Methylgruppe?","back":"Ein C-Atom","subject":"Organische Chemie / Nomenklatur"},
+      {"front":"Wie viele C-Atom hat eine Methylgruppe?","back":"Ein C-Atom","subject":"Organische Chemie / Nomenklatur"},
       {"front":"Wie viele C-Atom an eine Ethylgruppe?","back":"Zwei C-Atome","subject":"Organische Chemie / Nomenklatur"},
       {"front":"Wie viele C-Atome hat eine Propylgruppe?","back":"Drei C-Atome","subject":"Organische Chemie / Nomenklatur"},
       {"front":" Nomenklatur-Regeln: Wie leiten sich die Namen der Alkylseitengruppen ab?","back":"Vom Namen des entsprechenden Alkans mit der Endung -yl\n(Methan → Methyl, Ethan → Ethyl, ...)","subject":"Organische Chemie / Nomenklatur"},
@@ -1855,12 +2047,30 @@ function tplKeySet(){
   }
   return _tplKeySet;
 }
-// Fügt die Karten eines Satzes hinzu (mit Dublettenschutz), ohne zu speichern
-// oder neu zu zeichnen. Gibt die Zahl der neu hinzugefügten Karten zurück.
-// Liegt für eine Vorlage eine gespeicherte Korrektur (tplOverrides) vor, wird
-// die korrigierte Fassung geladen – nicht das Original.
-function addStartsetCards(set){
-  let added = 0;
+// Mischen neu geladener/importierter Karten: Beim Schreiben eines Kartensatzes
+// bleibt man meist bei einem Thema, Folgekarten sind sich dadurch oft sehr
+// ähnlich. Reihenfolge-Mischen verteilt sie im Lernstapel.
+function shuffleArray(arr){
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+function applyMixOptions(list, opts){
+  opts = opts || {};
+  let out = list;
+  if (opts.shuffle) out = shuffleArray(out);
+  return out;
+}
+
+// Sammelt die neuen Karten eines Satzes (mit Dublettenschutz gegen den
+// aktuellen Bestand), OHNE sie einzufügen oder zu speichern. Liegt für eine
+// Vorlage eine gespeicherte Korrektur (tplOverrides) vor, wird die
+// korrigierte Fassung geladen – nicht das Original.
+function collectStartsetCards(set){
+  const out = [];
   set.cards.forEach(d => {
     const sub = d.subject || 'Allgemein';
     const key = tplKeyOf(d.front, d.back, sub);
@@ -1880,10 +2090,9 @@ function addStartsetCards(set){
     if (bImg) neu.backImg = bImg;
     if (note) neu.note = note;
     if (ov) neu.edited = true; // korrigierte Vorlage geladen
-    cards.push(neu);
-    added++;
+    out.push(neu);
   });
-  return added;
+  return out;
 }
 function afterLoad(added, msg){
   if (added > 0) endgameAck = false;
@@ -1893,9 +2102,12 @@ function afterLoad(added, msg){
 }
 /* Einzel-Lader entfernt; Auswahl erfolgt per Haekchen. */
 // Lädt mehrere Sätze auf einmal (ganzer Fachbereich oder alles).
-function loadStartsets(sets, label){
-  let added = 0;
-  sets.forEach(s => { added += addStartsetCards(s); });
+function loadStartsets(sets, label, opts){
+  let batch = [];
+  sets.forEach(s => { batch = batch.concat(collectStartsetCards(s)); });
+  batch = applyMixOptions(batch, opts);
+  batch.forEach(c => cards.push(c));
+  const added = batch.length;
   afterLoad(added, added > 0
     ? added + ' Karten' + (label ? ' (' + label + ')' : '') + ' geladen'
     : 'Diese Kartensätze sind bereits vollst\u00E4ndig vorhanden');
@@ -1981,9 +2193,42 @@ function buildStartsetChooser(container, big){
   if (catNames.length === 0) return;
 
   const h = document.createElement('div');
-  h.className = 'exp-head';
+  h.className = 'act-head'; // gleiche Gruppen-Überschrift wie Export/Import/Aufräumen
   h.textContent = 'Startsätze (Vorlagen)';
   container.appendChild(h);
+
+  // Mischen-Optionen: gelten sowohl für die Schnellauswahl-Buttons unten als
+  // auch für „Ausgewählte Sätze hinzufügen".
+  const optWrap = document.createElement('div');
+  optWrap.style.cssText = 'margin:0 0 8px';
+  const shuffleLab = document.createElement('label');
+  shuffleLab.className = 'exp-row';
+  const shuffleCb = document.createElement('input');
+  shuffleCb.type = 'checkbox';
+  shuffleCb.checked = importShuffleSetting;
+  shuffleLab.appendChild(shuffleCb);
+  shuffleLab.appendChild(document.createTextNode('Neue Karten durchmischen (statt in Schreibreihenfolge)'));
+  optWrap.appendChild(shuffleLab);
+  container.appendChild(optWrap);
+  function currentMixOpts(){ return { shuffle: shuffleCb.checked }; }
+
+  // Schnellauswahl: ganze Kategorien oder alle Vorlagen mit einem Klick laden.
+  const quickWrap = document.createElement('div');
+  quickWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px';
+  function quickBtn(label, sets){
+    if (!sets.length) return;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn-ghost';
+    b.style.cssText = 'padding:6px 10px;flex:1 1 auto';
+    b.textContent = label;
+    b.onclick = () => loadStartsets(sets, label, currentMixOpts());
+    quickWrap.appendChild(b);
+  }
+  quickBtn('Alle Startsätze', STARTSETS);
+  quickBtn('Chemie gesamt', Object.values(byCat['Chemie'] || {}).flat());
+  quickBtn('Chemietechnik gesamt', Object.values(byCat['Chemietechnik'] || {}).flat());
+  if (quickWrap.children.length) container.appendChild(quickWrap);
 
   const leafCbs = []; // alle Satz-Kästchen über alle Gruppen hinweg
 
@@ -2021,7 +2266,7 @@ function buildStartsetChooser(container, big){
   addBtn.onclick = () => {
     const chosen = leafCbs.filter(c => c.checked).map(c => c._set);
     if (chosen.length === 0){ toast('Bitte mindestens einen Kartensatz wählen'); return; }
-    loadStartsets(chosen, chosen.length === 1 ? chosen[0].name : chosen.length + ' Sätze');
+    loadStartsets(chosen, chosen.length === 1 ? chosen[0].name : chosen.length + ' Sätze', currentMixOpts());
   };
   actWrap.appendChild(addBtn);
   container.appendChild(actWrap);
@@ -2197,6 +2442,11 @@ document.getElementById('btn-export').onclick = () => {
   toast(cards.length + ' Karten exportiert');
 };
 
+// Import läuft zweistufig: Datei einlesen + Kartenkandidaten bilden, dann im
+// Options-Dialog (Mischen / Fragerichtung mischen) bestätigen und erst dann
+// in den Bestand übernehmen. So gilt dieselbe Mischlogik wie bei Startsätzen.
+const importOverlay = document.getElementById('import-overlay');
+let pendingImport = null; // { list: Karten-Kandidaten, skipped }
 document.getElementById('btn-import').onclick = () => {
   document.getElementById('file-import').click();
 };
@@ -2204,13 +2454,14 @@ document.getElementById('file-import').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = async () => {
+  reader.onload = () => {
     try {
       const data = JSON.parse(reader.result);
       // akzeptiert eigenes Format oder ein nacktes Array von Karten
       const list = Array.isArray(data) ? data : data.cards;
       if (!Array.isArray(list)) throw new Error('Kein Kartenformat');
-      let added = 0, skipped = 0;
+      let skipped = 0;
+      const kandidaten = [];
       list.forEach(d => {
         if (typeof d.front !== 'string' || typeof d.back !== 'string'){ skipped++; return; }
         const fImg = (typeof d.frontImg === 'string' && d.frontImg.startsWith('data:image')) ? d.frontImg : null;
@@ -2231,14 +2482,19 @@ document.getElementById('file-import').addEventListener('change', (e) => {
           source: 'import'
         };
         if (typeof d.note === 'string' && d.note.trim()) karte.note = d.note.trim();
-        cards.push(karte);
-        if (bx >= 2 && bx <= 5) earlyLock[bx] = false; // Fach hat Zuwachs erhalten
-        added++;
+        kandidaten.push(karte);
       });
-      await save();
-      if (added > 0) endgameAck = false; // neuer Nachschub
-      renderSubjectFilter(); renderList(); renderShelf(); renderLearn();
-      toast(added + ' Karten importiert' + (skipped > 0 ? ', ' + skipped + ' übersprungen' : ''));
+      if (kandidaten.length === 0){
+        toast('Keine neuen Karten in dieser Datei' + (skipped > 0 ? ' (' + skipped + ' übersprungen)' : ''));
+        e.target.value = '';
+        return;
+      }
+      pendingImport = { list: kandidaten, skipped: skipped };
+      document.getElementById('import-summary').textContent =
+        kandidaten.length + ' Karte' + (kandidaten.length === 1 ? '' : 'n') + ' gefunden' +
+        (skipped > 0 ? ' (' + skipped + ' bereits vorhanden – werden übersprungen)' : '') + '.';
+      document.getElementById('import-shuffle').checked = importShuffleSetting;
+      importOverlay.classList.add('open');
     } catch(err){
       toast('Datei konnte nicht gelesen werden');
     }
@@ -2246,6 +2502,28 @@ document.getElementById('file-import').addEventListener('change', (e) => {
   };
   reader.readAsText(file);
 });
+document.getElementById('btn-import-close').onclick = () => { pendingImport = null; importOverlay.classList.remove('open'); };
+importOverlay.addEventListener('click', (e) => {
+  if (e.target === importOverlay){ pendingImport = null; importOverlay.classList.remove('open'); }
+});
+document.getElementById('btn-import-do').onclick = async () => {
+  if (!pendingImport) return;
+  const opts = {
+    shuffle: document.getElementById('import-shuffle').checked
+  };
+  const batch = applyMixOptions(pendingImport.list, opts);
+  batch.forEach(karte => {
+    cards.push(karte);
+    if (karte.box >= 2 && karte.box <= 5) earlyLock[karte.box] = false; // Fach hat Zuwachs erhalten
+  });
+  const added = batch.length, skipped = pendingImport.skipped;
+  pendingImport = null;
+  importOverlay.classList.remove('open');
+  await save();
+  if (added > 0) endgameAck = false; // neuer Nachschub
+  renderSubjectFilter(); renderList(); renderShelf(); renderLearn();
+  toast(added + ' Karten importiert' + (skipped > 0 ? ', ' + skipped + ' übersprungen' : ''));
+};
 
 /* ----- Auswahl-Export: einzelne Kartensätze OHNE Lernstand -----
    Es werden nur front/back/subject/note/Bilder geschrieben; box und last
@@ -2326,7 +2604,9 @@ function buildExportTree(){
   if (ownAreas.length === 0){
     const p = document.createElement('p');
     p.className = 'hint';
-    p.textContent = 'Du hast noch keine eigenen Karten – unten kannst du Startsätze exportieren.';
+    p.textContent = STARTSETS.length
+      ? 'Du hast noch keine eigenen Karten – unten kannst du Startsätze exportieren.'
+      : 'Du hast noch keine Karten zum Exportieren. Lege zuerst eigene Karten an.';
     tree.appendChild(p);
   } else {
     const h = document.createElement('div');
@@ -2433,6 +2713,178 @@ document.getElementById('btn-export-do').onclick = () => {
   toast(out.length + ' Karten aus ' + n + (n === 1 ? ' Satz' : ' Sätzen') + ' exportiert (ohne Lernstand)');
 };
 
+/* ----- Kartensätze löschen -----
+   Gegenstück zum Auswahl-Export: derselbe Baum, aber die angehakten Sätze
+   werden aus der Sammlung entfernt. Alle übrigen Karten behalten ihren
+   Lernstand (anders als beim Zurücksetzen). Korrekturen an Startsatz-Karten
+   wandern beim Löschen in die Vorlage (tplOverrides) und sind beim nächsten
+   Laden des Satzes wieder da. */
+const deleteOverlay = document.getElementById('delete-overlay');
+const DEL = id => document.getElementById(id);
+
+// Karten der Sammlung, die aus dieser Vorlage stammen (per tpl-Schlüssel).
+function startsetPresentCards(s){
+  const keys = new Set(s.cards.map(d => tplKeyOf(d.front, d.back, d.subject || 'Allgemein')));
+  return cards.filter(c => c.tpl && keys.has(c.tpl));
+}
+
+function buildDeleteTree(){
+  const tree = DEL('delete-tree');
+  tree.innerHTML = '';
+
+  // --- vorhandene Sätze nach Fachbereich / Unterthema ---
+  const ownAreas = areas();
+  if (ownAreas.length === 0){
+    const p = document.createElement('p');
+    p.className = 'hint';
+    p.textContent = 'Die Sammlung ist leer – es gibt nichts zu löschen.';
+    tree.appendChild(p);
+  } else {
+    const h = document.createElement('div');
+    h.className = 'exp-head';
+    h.textContent = 'Vorhandene Kartensätze';
+    tree.appendChild(h);
+    ownAreas.forEach(area => {
+      const leaves = [];
+      if (hasAreaOnly(area)){
+        const cnt = cards.filter(c => (c.subject || 'Allgemein') === area).length;
+        leaves.push({ labelText: '(ohne Unterthema)', count: cnt, kind: 'own', key: area });
+      }
+      topicsIn(area).forEach(topic => {
+        const subj = area + SEP + topic;
+        const cnt = cards.filter(c => (c.subject || 'Allgemein') === subj).length;
+        leaves.push({ labelText: topic, count: cnt, kind: 'own', key: subj });
+      });
+      buildExportGroup(tree, area, 'del-own::' + area, leaves);
+    });
+  }
+
+  // --- geladene Startsätze: löscht nur Karten dieser Vorlage, eigene Karten
+  //     im selben Thema bleiben erhalten ---
+  const loaded = [];
+  STARTSETS.forEach((s, idx) => {
+    const present = startsetPresentCards(s);
+    if (present.length) loaded.push({ s, idx, count: present.length });
+  });
+  if (loaded.length){
+    const h2 = document.createElement('div');
+    h2.className = 'exp-head second';
+    h2.textContent = 'Geladene Startsätze';
+    tree.appendChild(h2);
+    const byArea = {};
+    loaded.forEach(o => {
+      const a = o.s.area || areaOf((o.s.cards[0] && o.s.cards[0].subject) || 'Allgemein');
+      (byArea[a] = byArea[a] || []).push(o);
+    });
+    Object.keys(byArea).forEach(area => {
+      const leaves = byArea[area].map(o => ({ labelText: o.s.name, count: o.count, kind: 'start', key: String(o.idx) }));
+      buildExportGroup(tree, area, 'del-start::' + area, leaves);
+    });
+  }
+}
+
+// Welche Karten trifft die aktuelle Auswahl? (Mehrfachtreffer werden über ein
+// Set zusammengefasst – ein Satz kann über Thema UND Startsatz gewählt sein.)
+function deleteSelection(){
+  const picked = new Set();
+  DEL('delete-tree').querySelectorAll('.exp-leaf:checked').forEach(cb => {
+    if (cb.dataset.kind === 'own'){
+      const subj = cb.dataset.subject;
+      cards.forEach(c => { if ((c.subject || 'Allgemein') === subj) picked.add(c); });
+    } else {
+      const s = STARTSETS[+cb.dataset.idx];
+      if (s) startsetPresentCards(s).forEach(c => picked.add(c));
+    }
+  });
+  return picked;
+}
+// Auswahl abzüglich der geschützten (bearbeiteten) Karten.
+function deleteEffective(){
+  const picked = deleteSelection();
+  if (DEL('del-keepedited').checked){
+    [...picked].forEach(c => { if (c.edited) picked.delete(c); });
+  }
+  return picked;
+}
+function updateDeleteSummary(){
+  const setCount = DEL('delete-tree').querySelectorAll('.exp-leaf:checked').length;
+  const editedSel = [...deleteSelection()].filter(c => c.edited).length;
+  DEL('del-keepedited-cnt').textContent = '(' + editedSel + ' in der Auswahl)';
+
+  const del = deleteEffective();
+  const userDel = [...del].filter(c => c.source === 'user').length;
+  DEL('del-user-warn').style.display = userDel > 0 ? 'block' : 'none';
+  DEL('del-user-warn-cnt').textContent = userDel;
+
+  if (setCount === 0 || del.size === 0){
+    DEL('del-summary').textContent = setCount === 0
+      ? 'Nichts ausgewählt.'
+      : 'In der Auswahl bleibt nach dem Schutz „bearbeitete Karten behalten" nichts zu löschen.';
+    return;
+  }
+  const folded = [...del].filter(c => c.tpl && c.edited).length;
+  const parts = [del.size + ' Karte' + (del.size === 1 ? '' : 'n') + ' aus ' +
+                 setCount + (setCount === 1 ? ' Satz' : ' Sätzen') + ' gelöscht'];
+  if (folded > 0) parts.push(folded + ' Korrektur' + (folded === 1 ? '' : 'en') + ' in die Vorlage übernommen');
+  const rest = cards.length - del.size;
+  DEL('del-summary').innerHTML = '<b>Ergebnis:</b> ' + parts.join(' · ') +
+    '. Es verbleib' + (rest === 1 ? 't 1 Karte' : 'en ' + rest + ' Karten') +
+    ' – mit unverändertem Lernstand.';
+}
+
+DEL('btn-delete-open').onclick = () => {
+  buildDeleteTree();
+  DEL('del-keepedited').checked = false;
+  updateDeleteSummary();
+  deleteOverlay.classList.add('open');
+};
+DEL('btn-delete-close').onclick = () => deleteOverlay.classList.remove('open');
+deleteOverlay.addEventListener('click', e => { if (e.target === deleteOverlay) deleteOverlay.classList.remove('open'); });
+// Ein Listener für alle Kästchen im Baum (auch „Alle auswählen" meldet sich hier).
+deleteOverlay.addEventListener('change', updateDeleteSummary);
+DEL('del-user-export').onclick = () =>
+  exportCardList([...deleteEffective()].filter(c => c.source === 'user'),
+    'eigene-karten', 'Eigene Karten exportiert – jetzt kannst du sie löschen');
+
+DEL('btn-delete-do').onclick = async () => {
+  const setCount = DEL('delete-tree').querySelectorAll('.exp-leaf:checked').length;
+  if (setCount === 0){ toast('Bitte mindestens einen Kartensatz wählen'); return; }
+  const del = deleteEffective();
+  if (del.size === 0){ toast('In der Auswahl bleibt keine Karte zum Löschen'); return; }
+
+  const list = [...del];
+  const userDel = list.filter(c => c.source === 'user').length;
+  const folding = list.filter(c => c.tpl && c.edited);
+
+  const lines = ['• ' + list.length + ' Karte' + (list.length === 1 ? '' : 'n') + ' aus ' +
+                 setCount + (setCount === 1 ? ' Satz' : ' Sätzen') + ' werden gelöscht'];
+  if (userDel > 0) lines.push('• darunter ' + userDel + ' EIGENE Karten – unwiderruflich (vorher exportieren?)');
+  if (folding.length > 0) lines.push('• ' + folding.length + ' Korrektur(en) bleiben in der Vorlage erhalten');
+  const rest = cards.length - list.length;
+  lines.push('• der Lernstand der übrigen ' + rest + (rest === 1 ? ' Karte' : ' Karten') + ' bleibt erhalten');
+  if (!confirm('Ausgewählte Kartensätze wirklich löschen?\n\n' + lines.join('\n'))) return;
+
+  // Korrekturen gelöschter Startsatz-Karten in die Vorlage übernehmen
+  folding.forEach(c => {
+    tplOverrides[c.tpl] = {
+      front: c.front, back: c.back, subject: c.subject,
+      note: c.note || null, frontImg: c.frontImg || null, backImg: c.backImg || null
+    };
+  });
+
+  cards = cards.filter(c => !del.has(c));
+  // Laufende Runde verwerfen: sie kann gelöschte Karten enthalten.
+  current = null; queue = []; currentSubject = 'ALL'; earlyLock = {}; endgameAck = false;
+  await save();
+  if (cards.length === 0 && Object.keys(tplOverrides).length === 0){
+    try { await window.storage.delete(BACKUP_KEY); } catch(e){}
+  }
+  refill(); // rückt Karten aus dem Vorrat nach
+  renderSubjectFilter(); renderList(); renderShelf(); renderLearn();
+  deleteOverlay.classList.remove('open');
+  toast(list.length + ' Karten aus ' + setCount + (setCount === 1 ? ' Satz' : ' Sätzen') + ' gelöscht');
+};
+
 /* ----- Gezielt üben: Themen-Auswahl, dann sofortige Abfrage ----- */
 const drillOverlay = document.getElementById('drill-overlay');
 const openDrillAreas = new Set(); // merkt sich aufgeklappte Bereiche im Dialog
@@ -2517,6 +2969,52 @@ helpOverlay.addEventListener('click', (e) => {
   if (e.target === helpOverlay) helpOverlay.classList.remove('open'); // Klick auf den Hintergrund schließt
 });
 
+/* ================= Einstellungen ================= */
+const settingsOverlay = document.getElementById('settings-overlay');
+const batchCustomInput = document.getElementById('batch-custom-value');
+function batchChoiceRadios(){ return document.querySelectorAll('input[name="batch-choice"]'); }
+function selectedBatchChoice(){
+  const sel = document.querySelector('input[name="batch-choice"]:checked');
+  return sel ? sel.value : '20';
+}
+function syncBatchCustomEnabled(){
+  batchCustomInput.disabled = (selectedBatchChoice() !== 'custom');
+}
+function openSettingsDialog(){
+  let choice = String(batchSetting);
+  if (batchSetting === 20) choice = '20';
+  else if (batchSetting === 40) choice = '40';
+  else if (batchSetting === 'unlimited') choice = 'unlimited';
+  else { choice = 'custom'; batchCustomInput.value = batchSetting; }
+  document.getElementById('batch-' + choice).checked = true;
+  syncBatchCustomEnabled();
+  document.getElementById('settings-import-shuffle').checked = importShuffleSetting;
+  settingsOverlay.classList.add('open');
+}
+batchChoiceRadios().forEach(r => r.addEventListener('change', syncBatchCustomEnabled));
+document.getElementById('btn-settings').onclick = openSettingsDialog;
+document.getElementById('btn-settings-close').onclick = () => settingsOverlay.classList.remove('open');
+settingsOverlay.addEventListener('click', (e) => {
+  if (e.target === settingsOverlay) settingsOverlay.classList.remove('open');
+});
+document.getElementById('btn-settings-save').onclick = async () => {
+  const choice = selectedBatchChoice();
+  let v;
+  if (choice === 'unlimited') v = 'unlimited';
+  else if (choice === 'custom'){
+    const n = parseInt(batchCustomInput.value, 10);
+    if (!Number.isFinite(n) || n < 1){ toast('Bitte eine gültige Zahl (mind. 1) eingeben'); return; }
+    v = n;
+  } else v = parseInt(choice, 10);
+  applyBatchSetting(v);
+  importShuffleSetting = document.getElementById('settings-import-shuffle').checked;
+  await saveSettings();
+  renderShelf();
+  renderLearn();
+  settingsOverlay.classList.remove('open');
+  toast('Einstellung gespeichert');
+};
+
 /* ================= Navigation & Toast ================= */
 document.querySelectorAll('nav button').forEach(btn => {
   btn.onclick = () => {
@@ -2539,6 +3037,7 @@ function toast(msg){
 /* ================= Start ================= */
 (async () => {
   await load();
+  await loadSettings();
   renderSubjectFilter();
   renderStartsets();
   renderShelf();
