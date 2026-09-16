@@ -1,5 +1,7 @@
-// Service Worker für Synapso (mit Startsätzen) – Offline-Betrieb
-const CACHE = 'synapso-mit-v1.4';
+// Service Worker für Synapso – Offline-Betrieb
+// CACHE bei JEDEM Hochladen ändern (auch ohne neue App-Version), sonst behalten
+// installierte PWAs die alte Fassung: Schema synapso-v<App-Version>-<Upload-Nr.>
+const CACHE = 'synapso-v1.5-1';
 const ASSETS = [
   './',
   './index.html',
